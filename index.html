@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <meta name="theme-color" content="#020617" />
+
+  <title>Robot Turn Controller</title>
+
+  <link
+    rel="stylesheet"
+    href="styles.css"
+  />
+</head>
+
+<body>
+  <main class="app">
+
+    <section class="card hero">
+      <div>
+        <p class="eyebrow">
+          MQTT + PHONE GYROSCOPE
+        </p>
+
+        <h1>
+          Điều khiển góc quay Robot
+        </h1>
+
+        <p class="subtitle">
+          Điện thoại phải được cố định nằm ngửa trên robot.
+          Web gửi trạng thái qua <strong>topic/status</strong>,
+          sau đó đo góc và tự gửi trạng thái 0 đúng một lần khi đủ góc.
+        </p>
+      </div>
+
+      <div class="status-grid">
+        <div class="status-item">
+          <span>MQTT</span>
+          <strong
+            id="mqttStatus"
+            class="bad"
+          >
+            Chưa kết nối
+          </strong>
+        </div>
+
+        <div class="status-item">
+          <span>Cảm biến</span>
+          <strong
+            id="sensorStatus"
+            class="bad"
+          >
+            Chưa bật
+          </strong>
+        </div>
+
+        <div class="status-item">
+          <span>Phiên quay</span>
+          <strong id="turnStatus">
+            IDLE
+          </strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>1. Kết nối</h2>
+
+      <div class="button-row">
+        <button
+          id="connectBtn"
+          class="primary"
+        >
+          Kết nối HiveMQ
+        </button>
+
+        <button id="sensorBtn">
+          Bật cảm biến góc
+        </button>
+      </div>
+
+      <p class="hint">
+        Web cần HTTPS để dùng cảm biến trên các trình duyệt yêu cầu secure context.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>2. Lệnh quay</h2>
+
+      <div class="field-grid">
+        <label class="field">
+          <span>Hướng</span>
+
+          <select id="direction">
+            <option value="1">
+              Quay trái
+            </option>
+
+            <option value="2">
+              Quay phải
+            </option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Góc mục tiêu</span>
+
+          <input
+            id="targetAngle"
+            type="number"
+            min="1"
+            max="720"
+            step="1"
+            value="0"
+          />
+        </label>
+
+        <label class="field">
+          <span>Bù dừng sớm</span>
+
+          <input
+            id="stopLead"
+            type="number"
+            min="0"
+            max="30"
+            step="0.5"
+            value="0"
+          />
+        </label>
+      </div>
+
+      <p class="hint">
+        Sau khi quay hoàn tất hoặc dừng khẩn cấp, cấu hình phiên quay
+        sẽ bị xóa khỏi localStorage và các giá trị sẽ reset về 0.
+      </p>
+    </section>
+
+    <section class="card telemetry">
+      <h2>3. Góc thời gian thực</h2>
+
+      <div class="angle-grid">
+        <div>
+          <span>Góc hiện tại</span>
+          <strong>
+            <span id="alphaValue">--</span>°
+          </strong>
+        </div>
+
+        <div>
+          <span>Góc ban đầu</span>
+          <strong>
+            <span id="startValue">--</span>°
+          </strong>
+        </div>
+
+        <div>
+          <span>Đã quay</span>
+          <strong>
+            <span id="turnedValue">0.0</span>°
+          </strong>
+        </div>
+
+        <div>
+          <span>Mục tiêu</span>
+          <strong>
+            <span id="targetDisplay">0</span>°
+          </strong>
+        </div>
+      </div>
+
+      <div class="progress">
+        <div
+          id="progressBar"
+          class="progress-bar"
+        ></div>
+      </div>
+
+      <div class="state-row">
+        <div>
+          <span>stopSent</span>
+          <strong id="stopSentValue">
+            false
+          </strong>
+        </div>
+
+        <div>
+          <span>Payload cuối</span>
+          <strong id="lastPayload">
+            -
+          </strong>
+        </div>
+      </div>
+
+      <p
+        id="message"
+        class="message"
+      >
+        Kết nối MQTT và bật cảm biến trước khi quay.
+      </p>
+    </section>
+
+    <section class="card">
+      <div class="button-row action-row">
+        <button
+          id="turnBtn"
+          class="primary large"
+        >
+          QUAY
+        </button>
+
+        <button
+          id="stopBtn"
+          class="danger large"
+        >
+          DỪNG KHẨN CẤP
+        </button>
+      </div>
+    </section>
+
+    <section class="card details">
+      <h2>Quy ước topic/status</h2>
+
+      <div class="mapping">
+        <div>
+          <strong>0</strong>
+          <span>IDLE / STOP</span>
+        </div>
+
+        <div>
+          <strong>1</strong>
+          <span>QUAY TRÁI</span>
+        </div>
+
+        <div>
+          <strong>2</strong>
+          <span>QUAY PHẢI</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
