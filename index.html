@@ -8,7 +8,7 @@
   />
   <meta name="theme-color" content="#020617" />
 
-  <title>Robot Turn Controller</title>
+  <title>Robot Turn + Line Controller</title>
 
   <link
     rel="stylesheet"
@@ -22,17 +22,17 @@
     <section class="card hero">
       <div>
         <p class="eyebrow">
-          MQTT + PHONE GYROSCOPE
+          MQTT + GYROSCOPE + IR LINE FOLLOW
         </p>
 
         <h1>
-          Điều khiển góc quay Robot
+          Điều khiển Robot
         </h1>
 
         <p class="subtitle">
-          Điện thoại phải được cố định nằm ngửa trên robot.
-          Web gửi trạng thái qua <strong>topic/status</strong>,
-          sau đó đo góc và tự gửi trạng thái 0 đúng một lần khi đủ góc.
+          Chọn quay trái, quay phải hoặc bám line. Với chế độ quay,
+          điện thoại đo góc và tự gửi STOP khi đủ góc. Với chế độ bám line,
+          ESP32 tự đọc 2 cảm biến IR và điều khiển robot theo <strong>topic/status = 3</strong>.
         </p>
       </div>
 
@@ -58,7 +58,7 @@
         </div>
 
         <div class="status-item">
-          <span>Phiên quay</span>
+          <span>Trạng thái</span>
           <strong id="turnStatus">
             IDLE
           </strong>
@@ -88,11 +88,11 @@
     </section>
 
     <section class="card">
-      <h2>2. Lệnh quay</h2>
+      <h2>2. Chọn chế độ</h2>
 
       <div class="field-grid">
         <label class="field">
-          <span>Hướng</span>
+          <span>Chế độ</span>
 
           <select id="direction">
             <option value="1">
@@ -102,10 +102,14 @@
             <option value="2">
               Quay phải
             </option>
+
+            <option value="3">
+              Bám line
+            </option>
           </select>
         </label>
 
-        <label class="field">
+        <label class="field" id="targetAngleField">
           <span>Góc mục tiêu</span>
 
           <input
@@ -118,7 +122,7 @@
           />
         </label>
 
-        <label class="field">
+        <label class="field" id="stopLeadField">
           <span>Bù dừng sớm</span>
 
           <input
@@ -133,8 +137,8 @@
       </div>
 
       <p class="hint">
-        Sau khi quay hoàn tất hoặc dừng khẩn cấp, cấu hình phiên quay
-        sẽ bị xóa khỏi localStorage và các giá trị sẽ reset về 0.
+        Quay trái/phải vẫn dùng cảm biến góc như hiện tại. Khi chọn Bám line,
+        Góc mục tiêu và Bù dừng sớm sẽ bị khóa vì ESP32 tự điều khiển theo 2 cảm biến IR.
       </p>
     </section>
 
@@ -198,7 +202,7 @@
         id="message"
         class="message"
       >
-        Kết nối MQTT và bật cảm biến trước khi quay.
+        Kết nối MQTT. Chế độ quay cần bật cảm biến góc; Bám line thì không cần.
       </p>
     </section>
 
@@ -208,7 +212,7 @@
           id="turnBtn"
           class="primary large"
         >
-          QUAY
+          XÁC NHẬN
         </button>
 
         <button
@@ -237,6 +241,11 @@
         <div>
           <strong>2</strong>
           <span>QUAY PHẢI</span>
+        </div>
+
+        <div>
+          <strong>3</strong>
+          <span>BÁM LINE</span>
         </div>
       </div>
     </section>

@@ -4,6 +4,7 @@
 //   0 = STOP / IDLE
 //   1 = QUAY TRÁI
 //   2 = QUAY PHẢI
+//   3 = BÁM LINE
 //
 // Cấu hình phiên quay được lưu tạm vào localStorage.
 // Khi quay hoàn tất hoặc dừng khẩn cấp:
@@ -41,6 +42,7 @@ let currentAlpha = null;
 // ============================================================
 
 let isTurning = false;
+let isLineFollowing = false;
 
 let targetAngle = 0;
 let stopLead = 0;
@@ -93,6 +95,12 @@ const targetAngleInput =
 
 const stopLeadInput =
   $("stopLead");
+
+const targetAngleField =
+  $("targetAngleField");
+
+const stopLeadField =
+  $("stopLeadField");
 
 
 const alphaValue =
@@ -183,7 +191,8 @@ function loadSettings() {
 
     if (
       savedDirection === "1" ||
-      savedDirection === "2"
+      savedDirection === "2" ||
+      savedDirection === "3"
     ) {
       directionInput.value =
         savedDirection;
@@ -269,6 +278,7 @@ function resetTurnSession() {
 
   // Reset biến JavaScript.
   isTurning = false;
+  isLineFollowing = false;
 
   targetAngle = 0;
   stopLead = 0;
@@ -300,6 +310,7 @@ function resetTurnSession() {
   lastPayload.textContent =
     "0";
 
+  syncModeUi();
   updateUi();
 }
 
@@ -410,6 +421,34 @@ function updateUi() {
 
   progressBar.style.width =
     `${percent}%`;
+}
+
+
+function syncModeUi() {
+  const isLineMode =
+    directionInput.value === "3";
+
+  targetAngleInput.disabled =
+    isLineMode;
+
+  stopLeadInput.disabled =
+    isLineMode;
+
+  targetAngleField.classList.toggle(
+    "mode-disabled",
+    isLineMode
+  );
+
+  stopLeadField.classList.toggle(
+    "mode-disabled",
+    isLineMode
+  );
+
+  if (isLineMode && !isLineFollowing) {
+    setMessage(
+      "Bám line không cần cảm biến góc điện thoại. Nhấn XÁC NHẬN để gửi topic/status = 3."
+    );
+  }
 }
 
 
@@ -530,12 +569,12 @@ function connectMqtt() {
     () => {
       setMqttStatus(false);
 
-      if (isTurning) {
+      if (isTurning || isLineFollowing) {
 
         resetTurnSession();
 
         setMessage(
-          "Mất MQTT trong lúc quay. Đã reset phiên; ESP32 sẽ tự STOP do fail-safe."
+          "Mất MQTT khi robot đang hoạt động. Đã reset phiên; ESP32 sẽ tự STOP do fail-safe."
         );
       }
     }
@@ -562,6 +601,7 @@ function connectMqtt() {
 // 0 = STOP
 // 1 = LEFT
 // 2 = RIGHT
+// 3 = LINE FOLLOW
 function publishState(
   state,
   callback = null
@@ -856,7 +896,7 @@ function startTurn() {
 
   try {
 
-    if (isTurning) {
+    if (isTurning || isLineFollowing) {
       return;
     }
 
@@ -972,6 +1012,65 @@ function startTurn() {
 }
 
 
+function startLineFollow() {
+  try {
+    if (isTurning || isLineFollowing) {
+      return;
+    }
+
+    if (!mqttConnected) {
+      throw new Error(
+        "Hãy kết nối HiveMQ trước."
+      );
+    }
+
+    isLineFollowing = true;
+    isTurning = false;
+    stopSent = false;
+
+    saveSettings();
+
+    turnBtn.disabled = true;
+    turnStatus.textContent =
+      "BÁM LINE";
+
+    publishState(
+      3,
+      (error) => {
+        if (error) {
+          resetTurnSession();
+          setMessage(
+            "Không gửi được lệnh bám line. Đã reset phiên."
+          );
+        }
+      }
+    );
+
+    lastPayload.textContent =
+      "3";
+
+    setMessage(
+      "Đã gửi 3 = BÁM LINE. ESP32 đang tự đọc IR trái GPIO 33 và IR phải GPIO 32. Nhấn DỪNG KHẨN CẤP để thoát."
+    );
+  } catch (error) {
+    setMessage(
+      error.message ||
+      "Không thể bắt đầu bám line."
+    );
+  }
+}
+
+
+function confirmCommand() {
+  if (directionInput.value === "3") {
+    startLineFollow();
+    return;
+  }
+
+  startTurn();
+}
+
+
 function checkTarget() {
 
   if (!isTurning) {
@@ -1065,11 +1164,17 @@ function emergencyStop() {
   const stoppedAngle =
     angleTurned;
 
+  const wasLineFollowing =
+    isLineFollowing;
+
 
   stopSent =
     true;
 
   isTurning =
+    false;
+
+  isLineFollowing =
     false;
 
 
@@ -1096,7 +1201,9 @@ function emergencyStop() {
         } else {
 
           setMessage(
-            `Đã STOP tại ${stoppedAngle.toFixed(1)}° và xóa dữ liệu phiên.`
+            wasLineFollowing
+              ? "Đã STOP và thoát chế độ BÁM LINE."
+              : `Đã STOP tại ${stoppedAngle.toFixed(1)}° và xóa dữ liệu phiên.`
           );
         }
       }
@@ -1120,7 +1227,7 @@ function emergencyStop() {
 function bestEffortStop() {
 
   if (
-    !isTurning ||
+    (!isTurning && !isLineFollowing) ||
     !client ||
     !client.connected
   ) {
@@ -1134,6 +1241,9 @@ function bestEffortStop() {
       true;
 
     isTurning =
+      false;
+
+    isLineFollowing =
       false;
 
 
@@ -1171,7 +1281,7 @@ sensorBtn.addEventListener(
 
 turnBtn.addEventListener(
   "click",
-  startTurn
+  confirmCommand
 );
 
 
@@ -1186,6 +1296,7 @@ directionInput.addEventListener(
   "change",
   () => {
     saveSettings();
+    syncModeUi();
   }
 );
 
@@ -1216,7 +1327,7 @@ document.addEventListener(
 
     if (
       document.hidden &&
-      isTurning
+      (isTurning || isLineFollowing)
     ) {
       emergencyStop();
     }
@@ -1237,6 +1348,9 @@ window.addEventListener(
 
 // Nếu phiên trước chưa hoàn tất thì lấy lại giá trị đã nhập.
 loadSettings();
+
+// Đồng bộ UI theo chế độ đã lưu.
+syncModeUi();
 
 // Cập nhật giao diện.
 updateUi();
