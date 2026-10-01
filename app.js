@@ -5,6 +5,8 @@
 //   1 = QUAY TRÁI
 //   2 = QUAY PHẢI
 //   3 = BÁM LINE
+//   4 = RẼ TRÁI
+//   5 = RẼ PHẢI
 //
 // Cấu hình phiên quay được lưu tạm vào localStorage.
 // Khi quay hoàn tất hoặc dừng khẩn cấp:
@@ -192,7 +194,9 @@ function loadSettings() {
     if (
       savedDirection === "1" ||
       savedDirection === "2" ||
-      savedDirection === "3"
+      savedDirection === "3" ||
+      savedDirection === "4" ||
+      savedDirection === "5"
     ) {
       directionInput.value =
         savedDirection;
@@ -970,10 +974,17 @@ function startTurn() {
       );
 
 
+    const commandLabels = {
+      1: "QUAY TRÁI",
+      2: "QUAY PHẢI",
+      4: "RẼ TRÁI",
+      5: "RẼ PHẢI"
+    };
+
+
     turnStatus.textContent =
-      command === 1
-        ? "QUAY TRÁI"
-        : "QUAY PHẢI";
+      commandLabels[command] ||
+      "ĐANG CHẠY";
 
 
     updateUi();
@@ -996,10 +1007,17 @@ function startTurn() {
     );
 
 
+    const commandMessages = {
+      1: `Đã gửi 1 = QUAY TRÁI. Mục tiêu ${targetAngle}°.`,
+      2: `Đã gửi 2 = QUAY PHẢI. Mục tiêu ${targetAngle}°.`,
+      4: `Đã gửi 4 = RẼ TRÁI. Mục tiêu ${targetAngle}°.`,
+      5: `Đã gửi 5 = RẼ PHẢI. Mục tiêu ${targetAngle}°.`
+    };
+
+
     setMessage(
-      command === 1
-        ? `Đã gửi 1 = QUAY TRÁI. Mục tiêu ${targetAngle}°.`
-        : `Đã gửi 2 = QUAY PHẢI. Mục tiêu ${targetAngle}°.`
+      commandMessages[command] ||
+      `Đã gửi status ${command}. Mục tiêu ${targetAngle}°.`
     );
 
   } catch (error) {
